@@ -68,6 +68,16 @@ If your deployed app still shows old errors after a fix:
 
 This project no longer uses `use_container_width` and should not raise that warning on current code.
 
+
+### About `MediaFileHandler: Missing file ...`
+
+This warning usually appears when the browser requests an older temporary download/media URL after a rerun or reconnect.
+It is typically **not a data-loss bug** in your app logic.
+
+Mitigations in this project:
+- Download buttons use `on_click="ignore"` to avoid unnecessary reruns during download.
+- Relaunch app / clear cache if warnings persist after deployment updates.
+
 ## Notes
 
 - This starter uses deterministic, heuristic logic so it works out-of-the-box.

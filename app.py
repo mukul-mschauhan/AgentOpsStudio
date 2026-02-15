@@ -27,6 +27,8 @@ for key, default in {
 }.items():
     st.session_state.setdefault(key, default)
 
+DOWNLOAD_KWARGS = {"on_click": "ignore"}
+
 with st.sidebar:
     st.header("Inputs")
     industry = st.selectbox("Industry", ["Manufacturing", "Healthcare", "Finance", "IT Ops", "Other"])
@@ -165,10 +167,11 @@ if output is not None and trace is not None:
                 action_plan = build_ops_action_plan([a.model_dump() for a in output.recommendations.actions], output.recommendations.plan_90_days)
                 jira_csv = actions_to_csv([a.model_dump() for a in output.recommendations.actions])
 
-                st.download_button("Download CFO Memo (.md)", memo, file_name="cfo_memo.md")
-                st.download_button("Download Ops Action Plan (.md)", action_plan, file_name="ops_action_plan.md")
-                st.download_button("Download JIRA Tasks (.csv)", jira_csv, file_name="jira_tasks.csv")
+                st.download_button("Download CFO Memo (.md)", memo, file_name="cfo_memo.md", **DOWNLOAD_KWARGS)
+                st.download_button("Download Ops Action Plan (.md)", action_plan, file_name="ops_action_plan.md", **DOWNLOAD_KWARGS)
+                st.download_button("Download JIRA Tasks (.csv)", jira_csv, file_name="jira_tasks.csv", **DOWNLOAD_KWARGS)
                 st.json(output.model_dump())
+                st.caption("Download buttons are configured to avoid reruns and reduce stale media-file errors in logs.")
 
             with tabs[2]:
                 st.info("Ask follow-up questions in your workshop and rerun with changed assumptions (e.g., budget cut by 40%).")
