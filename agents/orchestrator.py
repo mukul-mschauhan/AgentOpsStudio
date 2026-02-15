@@ -6,6 +6,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from schemas.output_schema import AgentOutput, TraceBundle
+from tools.llm_gemini import generate_structured_output
 from tools.safety import enforce_constraints, refusal_check
 
 if TYPE_CHECKING:
@@ -24,6 +25,8 @@ class OrchestratorInput:
     tabular_df: Optional["pd.DataFrame"] = None
     sop_bytes: Optional[bytes] = None
     metrics_bytes: Optional[bytes] = None
+    gemini_api_key: Optional[str] = None
+    use_gemini: bool = False
 
 
 def _confidence_by_mode(mode: str, base: float) -> float:
@@ -91,14 +94,37 @@ def run_agent(payload: OrchestratorInput) -> Tuple[AgentOutput | None, TraceBund
         routed = "Ops Diagnostic Agent"
         result, trace_data = ops_diagnoser.run(payload.problem_statement, payload.constraints, payload.metrics_bytes)
 
+    llm_error = None
+    if payload.use_gemini and payload.gemini_api_key:
+        try:
+            result = generate_structured_output(
+                api_key=payload.gemini_api_key,
+                industry=payload.industry,
+                objective_type=payload.objective_type,
+                problem_statement=payload.problem_statement,
+                constraints=payload.constraints,
+                draft_result=result,
+            )
+            trace_data.setdefault("tool_calls", []).append(
+                {"tool": "gemini_generate_structured_output", "input": {"model": "gemini-1.5-flash"}, "output": "LLM enhanced output"}
+            )
+        except Exception as exc:  # noqa: BLE001
+            llm_error = str(exc)
+
     result["recommendations"]["actions"] = enforce_constraints(payload.constraints, result["recommendations"]["actions"])
     result["executive_summary"] = _rewrite_for_stakeholder(result["executive_summary"], payload.stakeholder_mode)
     result["confidence"] = _confidence_by_mode(payload.confidence_mode, result["confidence"])
 
     if payload.explain_mode:
         result["assumptions"].append("Explain mode enabled: intermediate steps surfaced for transparency.")
+    if llm_error:
+        result["assumptions"].append("Gemini fallback: deterministic logic was used because LLM call failed.")
 
     output = AgentOutput(**result)
+
+    assumptions = [*output.assumptions, f"Confidence: {output.confidence:.2f}"]
+    if llm_error:
+        assumptions.append(f"Gemini error: {llm_error}")
 
     trace = TraceBundle(
         inferred_requirements=inferred,
@@ -106,12 +132,12 @@ def run_agent(payload: OrchestratorInput) -> Tuple[AgentOutput | None, TraceBund
             "Interpret user objective and constraints.",
             f"Route to specialist: {routed}.",
             "Execute tools and compile evidence.",
-            "Generate structured recommendations and 90-day plan.",
+            "Optionally enhance output with Gemini.",
             "Render stakeholder-ready artifacts.",
         ],
         tool_calls=trace_data.get("tool_calls", []),
         evidence=trace_data.get("evidence", []),
-        assumptions_and_confidence=[*output.assumptions, f"Confidence: {output.confidence:.2f}"],
+        assumptions_and_confidence=assumptions,
         memory=[f"Stakeholder mode: {payload.stakeholder_mode}", f"Confidence mode: {payload.confidence_mode}"],
         routed_agent=routed,
     )

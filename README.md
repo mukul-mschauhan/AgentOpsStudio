@@ -58,6 +58,20 @@ agentops-studio/
 ```
 
 
+
+## Gemini LLM setup (recommended)
+
+1. In Streamlit Cloud app settings, open **Secrets**.
+2. Add:
+
+```toml
+GEMINI_API_KEY = "your_key_here"
+```
+
+3. Redeploy/relaunch the app and enable **Use Gemini LLM** in the sidebar.
+
+> Security note: Never hardcode API keys in code or commit history.
+
 ## Streamlit Cloud troubleshooting
 
 If your deployed app still shows old errors after a fix:

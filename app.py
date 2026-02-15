@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import List
 
 import streamlit as st
@@ -16,6 +17,7 @@ st.title("🤖 AgentOps Studio")
 st.caption("Pick an industry → describe the problem → upload data (optional) → the agent plans, executes, and delivers stakeholder-ready outcomes.")
 
 memory = load_memory()
+api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
 for key, default in {
     "last_output": None,
@@ -54,6 +56,10 @@ with st.sidebar:
     explain_mode = st.toggle("Explain Like I'm New", value=True)
     stakeholder_mode = st.selectbox("Stakeholder Mode", ["CFO", "Plant Manager", "CISO", "Product Head"], index=0)
     confidence_mode = st.select_slider("Confidence Slider", options=["Conservative", "Balanced", "Aggressive"], value="Balanced")
+    use_gemini = st.toggle("Use Gemini LLM", value=bool(api_key), help="Uses GEMINI_API_KEY from Streamlit Secrets or environment variable.")
+
+    if use_gemini and not api_key:
+        st.warning("Gemini is enabled, but no API key was found. Add GEMINI_API_KEY in Streamlit Secrets.")
 
     st.subheader("Attachments")
     tabular_file = st.file_uploader("Upload CSV/Excel", type=["csv", "xlsx", "xls"])
@@ -93,6 +99,8 @@ if should_run:
                     tabular_df=df,
                     sop_bytes=sop_file.getvalue() if sop_file else None,
                     metrics_bytes=metrics_file.getvalue() if metrics_file else None,
+                    gemini_api_key=api_key,
+                    use_gemini=use_gemini,
                 )
 
                 with st.spinner("Running agent workflow..."):
@@ -111,6 +119,7 @@ if should_run:
                         "stakeholder_mode": stakeholder_mode,
                         "confidence_mode": confidence_mode,
                         "constraints": constraints,
+                        "use_gemini": use_gemini,
                     }
                 )
     except Exception as exc:  # noqa: BLE001
@@ -124,9 +133,8 @@ df = st.session_state.last_df
 
 if st.session_state.last_error:
     st.error(f"Agent run failed: {st.session_state.last_error}")
-    st.info("Tip: No API key is needed for this starter build. Check logs for parsing/file issues.")
 
-if output is not None and trace is not None:
+if trace is not None:
     left, center, right = st.columns([1, 2, 1])
 
     with left:
@@ -139,6 +147,8 @@ if output is not None and trace is not None:
     with center:
         if refusal:
             st.error(refusal)
+        elif output is None:
+            st.error("Agent could not produce structured output. Check trace and assumptions for details.")
         else:
             tabs = st.tabs(["Executive Answer", "Deliverables", "Interactive Q&A"])
 
@@ -171,7 +181,6 @@ if output is not None and trace is not None:
                 st.download_button("Download Ops Action Plan (.md)", action_plan, file_name="ops_action_plan.md", **DOWNLOAD_KWARGS)
                 st.download_button("Download JIRA Tasks (.csv)", jira_csv, file_name="jira_tasks.csv", **DOWNLOAD_KWARGS)
                 st.json(output.model_dump())
-                st.caption("Download buttons are configured to avoid reruns and reduce stale media-file errors in logs.")
 
             with tabs[2]:
                 st.info("Ask follow-up questions in your workshop and rerun with changed assumptions (e.g., budget cut by 40%).")
@@ -198,4 +207,4 @@ if output is not None and trace is not None:
 
 else:
     st.info("Configure inputs in the left sidebar and click **Run Agent**.")
-    st.caption("You do not need an API key for this deterministic demo version.")
+    st.caption("For LLM generation, set GEMINI_API_KEY in Streamlit Secrets.")
