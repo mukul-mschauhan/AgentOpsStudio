@@ -109,7 +109,7 @@ if run_clicked or explain_clicked:
                 st.subheader("Top Risks")
                 st.table([r.model_dump() for r in output.recommendations.risks])
                 st.subheader("Recommended Actions")
-                st.dataframe([a.model_dump() for a in output.recommendations.actions], use_container_width=True)
+                st.dataframe([a.model_dump() for a in output.recommendations.actions], width='stretch')
                 st.subheader("90-Day Plan")
                 for line in output.recommendations.plan_90_days:
                     st.markdown(f"- {line}")
@@ -120,7 +120,7 @@ if run_clicked or explain_clicked:
                     for spec in output.analysis.charts:
                         fig = render_chart(df, spec.model_dump())
                         if fig:
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width='stretch')
 
             with tabs[1]:
                 memo = build_cfo_memo(output.executive_summary, [r.model_dump() for r in output.recommendations.risks], [a.model_dump() for a in output.recommendations.actions])
