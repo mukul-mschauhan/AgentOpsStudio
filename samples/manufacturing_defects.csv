@@ -1,0 +1,7 @@
+line_id,shift,units_produced,defect_rate,downtime_minutes,temperature
+A1,Day,1200,0.021,38,72
+A1,Night,980,0.034,52,75
+B2,Day,1430,0.018,29,70
+B2,Night,1100,0.027,44,73
+C3,Day,990,0.031,58,77
+C3,Night,1040,0.022,34,71
