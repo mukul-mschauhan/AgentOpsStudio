@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from importlib import import_module
+from types import ModuleType
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
-import pandas as pd
-
-from . import boardroom, data_analyst, ops_diagnoser, process_designer
 from schemas.output_schema import AgentOutput, TraceBundle
 from tools.safety import enforce_constraints, refusal_check
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @dataclass
@@ -19,7 +21,7 @@ class OrchestratorInput:
     explain_mode: bool
     stakeholder_mode: str
     confidence_mode: str
-    tabular_df: Optional[pd.DataFrame] = None
+    tabular_df: Optional["pd.DataFrame"] = None
     sop_bytes: Optional[bytes] = None
     metrics_bytes: Optional[bytes] = None
 
@@ -42,6 +44,14 @@ def _rewrite_for_stakeholder(summary: List[str], stakeholder_mode: str) -> List[
     return [f"{prefix} {item}" for item in summary]
 
 
+def _load_specialists() -> tuple[ModuleType, ModuleType, ModuleType, ModuleType]:
+    boardroom = import_module(".boardroom", package=__package__)
+    data_analyst = import_module(".data_analyst", package=__package__)
+    ops_diagnoser = import_module(".ops_diagnoser", package=__package__)
+    process_designer = import_module(".process_designer", package=__package__)
+    return boardroom, data_analyst, ops_diagnoser, process_designer
+
+
 def run_agent(payload: OrchestratorInput) -> Tuple[AgentOutput | None, TraceBundle, str | None]:
     refusal = refusal_check(payload.problem_statement)
     if refusal:
@@ -57,6 +67,16 @@ def run_agent(payload: OrchestratorInput) -> Tuple[AgentOutput | None, TraceBund
         f"Industry context: {payload.industry}",
         f"Objective type: {payload.objective_type}",
     ]
+
+    try:
+        boardroom, data_analyst, ops_diagnoser, process_designer = _load_specialists()
+    except Exception as exc:  # noqa: BLE001
+        trace = TraceBundle(
+            inferred_requirements=inferred,
+            plan=["Load specialist modules.", "Route to selected specialist."],
+            assumptions_and_confidence=["Confidence: 0.0"],
+        )
+        return None, trace, f"Agent modules could not be loaded: {exc}"
 
     if payload.objective_type == "Analyze Data (CSV/Excel)" and payload.tabular_df is not None:
         routed = "Data Analyst Agent"

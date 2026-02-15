@@ -57,6 +57,17 @@ agentops-studio/
   samples/
 ```
 
+
+## Streamlit Cloud troubleshooting
+
+If your deployed app still shows old errors after a fix:
+
+1. Confirm the deploy points to the latest commit on the `main` branch.
+2. In Streamlit Cloud, click **Relaunch app** (or reboot from app settings).
+3. If needed, clear app cache and rerun.
+
+This project no longer uses `use_container_width` and should not raise that warning on current code.
+
 ## Notes
 
 - This starter uses deterministic, heuristic logic so it works out-of-the-box.
